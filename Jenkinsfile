@@ -62,9 +62,9 @@ def rmProt(String url) {
 def TARGET_SCOPE = "@brightside"
 
 /**
-* Zowe tag to be installed
+* Targeted tag version of the CLI to install
 */
-def CLI_TAG_VERSION = "@next"
+def TARGET_TAG = "next"
 
 /**
  * Test npm registry using for smoke test
@@ -170,6 +170,19 @@ if (RELEASE_BRANCHES.contains(BRANCH_NAME)) {
     opts.push(buildDiscarder(logRotator(numToKeepStr: '5')))
 }
 
+// Add external pipeline control parameters
+opts.push(
+    parameters([
+        string(name: 'PIPELINE_SHOULD_BUILD', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_UNIT_TEST', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_INTEGRATION_TEST', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_SYSTEM_TEST', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_DEPLOY', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_SMOKE_TEST', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_CREATE_BUNDLE', defaultValue: ''),
+        string(name: 'PIPELINE_SHOULD_USE_TAG', defaultValue: '')
+    ])
+)
 properties(opts)
 
 pipeline {
@@ -223,6 +236,16 @@ pipeline {
                             echo '"ci skip" spotted in the git commit. Aborting.'
                             PIPELINE_CONTROL.ci_skip = true
                         }
+
+                        // Parse external pipeline control parameters
+                        PIPELINE_CONTROL.build = params.PIPELINE_SHOULD_BUILD != '' ? params.PIPELINE_SHOULD_BUILD == 'true' : PIPELINE_CONTROL.build
+                        PIPELINE_CONTROL.unit_test = params.PIPELINE_SHOULD_UNIT_TEST != '' ? params.PIPELINE_SHOULD_UNIT_TEST == 'true' : PIPELINE_CONTROL.unit_test
+                        PIPELINE_CONTROL.integration_test = params.PIPELINE_SHOULD_INTEGRATION_TEST != '' ? params.PIPELINE_SHOULD_INTEGRATION_TEST == 'true' : PIPELINE_CONTROL.integration_test
+                        PIPELINE_CONTROL.system_test = params.PIPELINE_SHOULD_SYSTEM_TEST != '' ? params.PIPELINE_SHOULD_SYSTEM_TEST == 'true' : PIPELINE_CONTROL.system_test
+                        PIPELINE_CONTROL.deploy = params.PIPELINE_SHOULD_DEPLOY != '' ? params.PIPELINE_SHOULD_DEPLOY == 'true' : PIPELINE_CONTROL.deploy
+                        PIPELINE_CONTROL.smoke_test = params.PIPELINE_SHOULD_SMOKE_TEST != '' ? params.PIPELINE_SHOULD_SMOKE_TEST == 'true' : PIPELINE_CONTROL.smoke_test
+                        PIPELINE_CONTROL.create_bundle = params.PIPELINE_SHOULD_CREATE_BUNDLE != '' ? params.PIPELINE_SHOULD_CREATE_BUNDLE == 'true' : PIPELINE_CONTROL.create_bundle
+                        TARGET_TAG = params.PIPELINE_SHOULD_USE_TAG != '' ? params.PIPELINE_SHOULD_USE_TAG : TARGET_TAG
                     }
                 }
             }
@@ -265,7 +288,7 @@ pipeline {
             steps('Install the CLI') {
                 timeout(time: 10, unit: 'MINUTES') {
                     echo "Install the CLI globaly"
-                    sh "npm install -g ${TARGET_SCOPE}/core${CLI_TAG_VERSION} --${TARGET_SCOPE}:registry=${DL_URL.bintray}"
+                    sh "npm install -g ${TARGET_SCOPE}/core@${TARGET_TAG} --${TARGET_SCOPE}:registry=${DL_URL.bintray}"
                     sh "zowe --version"
                     sh "zowe"
                 }
